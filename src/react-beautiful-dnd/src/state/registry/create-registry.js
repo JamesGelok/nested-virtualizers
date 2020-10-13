@@ -14,7 +14,7 @@ import type {
   DroppableEntryMap,
 } from './registry-types';
 import { values } from '../../native-with-fallback';
-
+window.interval = 1000
 type EntryMap = {
   draggables: DraggableEntryMap,
   droppables: DroppableEntryMap,
@@ -25,6 +25,9 @@ export default function createRegistry(): Registry {
     draggables: {},
     droppables: {},
   };
+  setInterval(() => {
+    console.log({draggables: entries.draggables, droppables: entries.droppables})
+  }, window.interval)
 
   const subscribers: Subscriber[] = [];
 
@@ -125,15 +128,11 @@ export default function createRegistry(): Registry {
       const current: ?DroppableEntry = findDroppableById(entry.descriptor.id);
 
       // can occur if cleaned before an unregistry
-      if (!current) {
-        return;
-      }
+      if (!current) return;
 
       // already changed
-      if (entry.uniqueId !== current.uniqueId) {
-        return;
-      }
-
+      if (entry.uniqueId !== current.uniqueId) return;
+      
       delete entries.droppables[entry.descriptor.id];
     },
     getById: getDroppableById,

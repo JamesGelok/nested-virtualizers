@@ -78,16 +78,18 @@ export default function Droppable(props: Props) {
     }
   }, [isMovementAllowed, updateViewportMaxScroll]);
 
-  useDroppablePublisher({
-    droppableId,
-    type,
-    mode,
-    direction,
-    isDropDisabled,
-    isCombineEnabled,
-    ignoreContainerClipping,
-    getDroppableRef,
-  });
+const publisherArgs = {
+  droppableId,
+  type,
+  mode,
+  direction,
+  isDropDisabled,
+  isCombineEnabled,
+  ignoreContainerClipping,
+  getDroppableRef,
+}
+  console.log(JSON.parse(JSON.stringify(publisherArgs)))
+  useDroppablePublisher(publisherArgs);
 
   const placeholder: Node = (
     <AnimateInOut
@@ -157,6 +159,7 @@ export default function Droppable(props: Props) {
 
     return ReactDOM.createPortal(node, getContainerForClone());
   }
+
 
   return (
     <DroppableContext.Provider value={droppableContext}>

@@ -1,5 +1,5 @@
 // @flow
-import React, { memo, useState, useLayoutEffect, useRef } from "react";
+import React, { memo, useState, useLayoutEffect, useRef, useEffect } from "react";
 import ReactDOM from "react-dom";
 import areEqual from "./areEqual";
 import { List, WindowScroller } from "react-virtualized";
@@ -7,6 +7,20 @@ import { DragDropContext, Droppable, Draggable } from "../react-beautiful-dnd/sr
 import "./style.css";
 import getInitialData from "./get-initial-data";
 import { reorderList } from "./reorder";
+
+const portal = document.createElement('div');
+portal.classList.add('my-super-cool-portal');
+if (!document.body) throw new Error('body not ready for portal creation!');
+document.body.appendChild(portal);
+
+const Delay = memo(function Delay({ delay = 1, children = null }) {
+  const [numRenders, setNumRenders] = useState(0);
+  useEffect(() => {
+    if (numRenders < delay) setNumRenders((n) => ++n);
+  });
+  return numRenders < delay ? null : children;
+})
+
 
 function getStyle({ draggableStyle, virtualStyle, isDragging }) {
   // If you don't want any spacing between your items
@@ -32,8 +46,8 @@ function getStyle({ draggableStyle, virtualStyle, isDragging }) {
   return result;
 }
 
-function Item({ provided, item, style, isDragging }) {
-  return (
+function Item({ provided, item, style, isDragging, usingPortal = false }) {
+  const node = (
     <div
       {...provided.draggableProps}
       {...provided.dragHandleProps}
@@ -48,6 +62,9 @@ function Item({ provided, item, style, isDragging }) {
       {item.text}
     </div>
   );
+
+  if (usingPortal) return ReactDOM.createPortal(node, portal);
+  else return node;
 }
 
 function Column({
@@ -56,27 +73,32 @@ function Column({
   index,
   style: virtualStyle,
   isDragging = false,
+  isVisible = true,
+  usingPortal = false
 }) {
-  return (
+  const node = (
     <div
-      className="column"
-      {...provided.draggableProps}
-      ref={provided.innerRef}
-      style={getStyle({
-        draggableStyle: provided.draggableProps.style,
-        virtualStyle,
-        isDragging,
-      })}
-    >
-      <h3 className="column-title" {...provided.dragHandleProps}>
-        {column.title}
-      </h3>
-      <ItemList column={column} index={index} />
-    </div>
+    className="column"
+    {...provided.draggableProps}
+    ref={provided.innerRef}
+    style={getStyle({
+      draggableStyle: provided.draggableProps.style,
+      virtualStyle,
+      isDragging,
+    })}
+  >
+    <h3 className="column-title" {...provided.dragHandleProps}>
+      {column.title}
+    </h3>
+    {isVisible && <ItemList column={column} index={index} />}
+  </div>
   );
+
+  if (usingPortal) return ReactDOM.createPortal(node, portal);
+  else return node;
 }
 
-const makeItemRenderer = (list) => ({
+const makeItemRenderer = (list, isDragging) => ({
   index, // Index of row
   isScrolling, // The List is currently being scrolled
   isVisible, // This row is visible within the List (eg it is not an overscanned row)
@@ -85,12 +107,17 @@ const makeItemRenderer = (list) => ({
   style, // Style object to be applied to row (to position it);
   // This must be passed through to the rendered row element.
 }) => {
-  return <ItemDraggable key={key} items={list} index={index} style={style} />;
+  const item = list[index];
+
+
+  return <Delay style={style} alt={<Item item={item} style={style} key={key}/>}>
+    <ItemDraggable  items={list} index={index} style={style} />
+  </Delay>;
 };
 
 // Recommended react-window performance optimisation: memoize the row render function
 // Things are still pretty fast without this, but I am a sucker for making things faster
-const ItemDraggable = function ItemDraggable({ items, index, style }) {
+const ItemDraggable = memo(function ItemDraggable({ items, index, style }) {
   const item = items[index];
 
   // We are rendering an extra item for the placeholder
@@ -100,11 +127,12 @@ const ItemDraggable = function ItemDraggable({ items, index, style }) {
       {(provided) => <Item provided={provided} item={item} style={style} />}
     </Draggable>
   );
-};
+});
 
 const ColumnDraggable = memo(function ColumnDraggable({
   columns,
   columnOrder,
+  isVisible,
   index,
   style,
 }) {
@@ -114,9 +142,10 @@ const ColumnDraggable = memo(function ColumnDraggable({
   if (!column) return null;
   return (
     <Draggable draggableId={column.id} index={index} key={column.id}>
-      {(provided) => (
-        <Column provided={provided} column={column} index={index} style={style} />
-      )}
+      {(provided, snapshot) => {
+        return (
+        <Column provided={provided} column={column} index={index} style={style} isVisible={isVisible}/>
+      )}}
     </Draggable>
   );
 },
@@ -131,27 +160,13 @@ const makeColumnRenderer = (columns, columnOrder) => ({
   style, // Style object to be applied to row (to position it);
   // This must be passed through to the rendered row element.
 }) => {
-  // If row content is complex, consider rendering a light-weight placeholder while scrolling.
-  // const content = isScrolling ? '...' : <User user={user} />;
-
-  // Style is required since it specifies how the row is to be sized and positioned.
-  // React Virtualized depends on this sizing/positioning for proper scrolling behavior.
-  // By default, the List component provides following style properties:
-  //    position
-  //    left
-  //    top
-  //    height
-  //    width
-  // You can add additional class names or style properties as you would like.
-  // Key is also required by React to more efficiently manage the array of rows.
-
-  // We are rendering an extra item for the placeholder
 
   return (
     <ColumnDraggable
       key={key}
       columns={columns}
       columnOrder={columnOrder}
+      isVisible={isVisible}
       index={index}
       style={style}
     />
@@ -182,6 +197,7 @@ const ItemList = function ItemList({ column, index }) {
           provided={provided}
           isDragging={snapshot.isDragging}
           item={column.items[rubric.source.index]}
+          usingPortal={true}
         />
       )}
     >
@@ -201,7 +217,7 @@ const ItemList = function ItemList({ column, index }) {
             rowHeight={80}
             // deferredMeasurementCache={cache.current}
             rowCount={itemCount}
-            rowRenderer={makeItemRenderer(column.items)}
+            rowRenderer={makeItemRenderer(column.items, snapshot.isUsingPlaceholder)}
             ref={(ref) => {
               // react-virtualized has no way to get the list's ref that I can so
               // So we use the `ReactDOM.findDOMNode(ref)` escape hatch to get the ref
@@ -233,6 +249,7 @@ const ColumnList = function ColumnList({ columnOrder, columns }) {
               isDragging={snapshot.isDragging}
               column={columns[columnOrder[rubric.source.index]]}
               index={rubric.source.index}
+              usingPortal={true}
             />
           )}
         >

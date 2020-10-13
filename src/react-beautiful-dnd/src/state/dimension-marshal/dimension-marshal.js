@@ -160,7 +160,7 @@ export default (registry: Registry, callbacks: Callbacks) => {
     const dragging: DraggableDescriptor = collection.critical.draggable;
 
     if (event.type === 'ADDITION') {
-      console.log(event.type, event.value);
+      console.log(JSON.parse(JSON.stringify(event)));
       if (shouldPublishUpdate(registry, dragging, event.value)) {
         publisher.add(event.value);
       }

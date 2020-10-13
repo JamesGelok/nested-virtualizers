@@ -38,6 +38,8 @@ body {
   border-radius: var(--borderRadius);
   background-color: #2a2f41;
   display: flex;
+  flex-direction: column;
+
   justify-content: space-between;
 }
 

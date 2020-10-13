@@ -69,6 +69,7 @@ export default function useDroppablePublisher(args: Props) {
     }),
     [args.droppableId, args.mode, args.type],
   );
+
   const publishedDescriptorRef = useRef<DroppableDescriptor>(descriptor);
 
   const memoizedUpdateScroll = useMemo(
@@ -243,6 +244,8 @@ export default function useDroppablePublisher(args: Props) {
   // - when it unmounts
   useLayoutEffect(() => {
     publishedDescriptorRef.current = entry.descriptor;
+    entry.james_added = new Date().toTimeString();
+    console.log(entry)
     registry.droppable.register(entry);
 
     return () => {
