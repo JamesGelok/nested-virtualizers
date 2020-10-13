@@ -16,6 +16,8 @@ import type {
   DraggableEntry,
   DraggableEntryMap,
 } from '../registry/registry-types';
+import getViewport from '../../view/window/get-viewport';
+
 import * as timings from '../../debug/timings';
 import { origin } from '../position';
 
@@ -84,6 +86,10 @@ export default function createPublisher({
       const updated: DroppablePublish[] = Object.keys(modified).map(
         (id: DroppableId) => {
           const entry: DroppableEntry = registry.droppable.getById(id);
+          const viewport: Viewport = getViewport();
+          const windowScroll: Position = viewport.scroll.current;
+
+          entry.callbacks.getDimensionAndWatchScroll(windowScroll, { shouldPublishImmediately: false })
 
           const scroll: Position = entry.callbacks.getScrollWhileDragging();
           return {
