@@ -211,7 +211,7 @@ const ItemList = function ItemList({ column, index }) {
 
         return (
           <List
-            className="task-list"
+            className="item-list"
             height={500}
             width={300}
             rowHeight={80}
